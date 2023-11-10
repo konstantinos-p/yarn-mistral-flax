@@ -1,0 +1,10 @@
+{
+  "additional_special_tokens": [
+    "<unk>",
+    "<s>",
+    "</s>"
+  ],
+  "bos_token": "<s>",
+  "eos_token": "</s>",
+  "unk_token": "<unk>"
+}
