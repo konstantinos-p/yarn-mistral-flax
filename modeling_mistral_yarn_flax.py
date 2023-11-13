@@ -269,7 +269,7 @@ class MistralDynamicNTKScalingRotaryEmbedding(MistralRotaryEmbedding):
         self.sin_cached = jnp.sin(emb).astype(dtype)
 
 
-class MistralYarnScaledRotaryEmbedding(nn.Module):
+class MistralYaRNScaledRotaryEmbedding(nn.Module):
     """MistralRotaryEmbedding extended with YaRN. See: https://arxiv.org/abs/2309.00071"""
     dim: int
     max_position_embeddings: int = 2048
@@ -291,6 +291,7 @@ class MistralYarnScaledRotaryEmbedding(nn.Module):
         freqs = jnp.einsum("i,j->ij", t, jax.lax.stop_gradient(self.inv_freq))
         # Different from paper, but it uses a different permutation in order to obtain the same calculation
         emb = jnp.concatenate((freqs, freqs), axis=-1)
+        self.dtype = jnp.float32
         self.cos_cached = (jnp.cos(emb) * self.mscale).astype(self.dtype)
         self.sin_cached = (jnp.sin(emb) * self.mscale).astype(self.dtype)
 
@@ -322,7 +323,71 @@ class MistralYarnScaledRotaryEmbedding(nn.Module):
                                                 self.original_max_position_embeddings)
         inv_freq_mask = (1 - _yarn_linear_ramp_mask(low, high, self.dim // 2).astype(jnp.float32)) * self.extrapolation_factor
         self.inv_freq = inv_freq_interpolation * (1 - inv_freq_mask) + inv_freq_etrapolation * inv_freq_mask
-        self.mscae = float(_yarn_get_mscale(self.scale) * self.attn_factor)
+        self.mscale = float(_yarn_get_mscale(self.scale) * self.attn_factor)
+
+
+class MistralDynamicYaRNScaledRotaryEmbedding(nn.Module):
+    """MistralRotaryEmbedding extended with YaRN. See: https://arxiv.org/abs/2309.00071"""
+    dim: int
+    max_position_embeddings: int = 2048
+    base: float = 10000
+    original_max_position_embeddings: int = 2048
+    extrapolation_factor: float = 1.0
+    attn_factor: float = 1.0
+    beta_fast: float = 1.0
+    beta_slow: float = 2.0
+    finetuned: bool = False
+
+    def setup(self):
+
+        if self.finetuned:
+            self.yarn(self.max_position_embeddings / self.original_max_position_embeddings)
+        else:
+            self.inv_freq = 1.0 / (self.base ** (jnp.arange(0, self.dim, 2).astype(jnp.float) / self.dim))
+
+        # Build here to make `torch.jit.trace` work.
+        self.max_seq_len_cached = self.max_position_embeddings
+        t = jnp.arange(self.max_seq_len_cached, dtype=self.inv_freq.dtype)
+        freqs = jnp.einsum("i,j->ij", t, jax.lax.stop_gradient(self.inv_freq))
+        # Different from paper, but it uses a different permutation in order to obtain the same calculation
+        emb = jnp.concatenate((freqs, freqs), axis=-1)
+        self.dtype = jnp.float32
+
+        self.cos_cached = (jnp.cos(emb) * self.mscale).astype(self.dtype)
+        self.sin_cached = (jnp.sin(emb) * self.mscale).astype(self.dtype)
+
+    def __call__(self, x, seq_len):
+        # x: [bs, num_attention_heads, seq_len, head_size]
+        # This `if` block is unlikely to be run after we build sin/cos in `__init__`. Keep the logic here just in case.
+        if seq_len > self.max_seq_len_cached:
+            self.max_seq_len_cached = seq_len
+
+            self.yarn(seq_len / self.max_position_embeddings)
+
+            t = jnp.arange(self.max_seq_len_cached, dtype=self.inv_freq.dtype)
+            freqs = jnp.einsum("i,j->ij", t, jax.lax.stop_gradient(self.inv_freq))
+            # Different from paper, but it uses a different permutation in order to obtain the same calculation
+            emb = jnp.concatenate((freqs, freqs), axis=-1)
+            self.cos_cached = (jnp.cos(emb) * self.mscale).astype(self.dtype)
+            self.sin_cached = (jnp.sin(emb) * self.mscale).astype(self.dtype)
+        return (
+            jax.lax.stop_gradient(self.cos_cached[:seq_len].astype(x.dtype)),
+            jax.lax.stop_gradient(self.sin_cached[:seq_len].astype(x.dtype)),
+        )
+
+    def yarn(self, scale):
+        pos_freqs = self.base ** (jnp.arange(0, self.dim, 2).astype(jnp.float32) / self.dim)
+        inv_freq_etrapolation = 1.0 / pos_freqs
+        inv_freq_interpolation = 1.0 / (scale * pos_freqs)
+
+        low, high = _yarn_find_correction_range(self.beta_fast,
+                                                self.beta_slow,
+                                                self.dim,
+                                                self.base,
+                                                self.original_max_position_embeddings)
+        inv_freq_mask = (1 - _yarn_linear_ramp_mask(low, high, self.dim // 2).astype(jnp.float32)) * self.extrapolation_factor
+        self.inv_freq = inv_freq_interpolation * (1 - inv_freq_mask) + inv_freq_etrapolation * inv_freq_mask
+        self.mscale = float(_yarn_get_mscale(scale) * self.attn_factor)
 
 
 

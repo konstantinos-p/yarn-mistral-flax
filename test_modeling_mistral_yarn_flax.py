@@ -23,8 +23,13 @@ from modeling_mistral_yarn import MistralRotaryEmbedding as MistralRotaryEmbeddi
 from modeling_mistral_yarn_flax import MistralLinearScalingRotaryEmbedding as MistralLinearScalingRotaryEmbedding_flax
 from modeling_mistral_yarn import MistralLinearScalingRotaryEmbedding as MistralLinearScalingRotaryEmbedding_torch
 
-from modeling_mistral_yarn_flax import MistralDynamicNTKScalingRotaryEmbedding as MistralDynamicNTKScalingRotaryEmbedding_flax
-from modeling_mistral_yarn import MistralDynamicNTKScalingRotaryEmbedding as MistralDynamicNTKScalingRotaryEmbedding_torch
+from modeling_mistral_yarn_flax import \
+    MistralDynamicNTKScalingRotaryEmbedding as MistralDynamicNTKScalingRotaryEmbedding_flax
+from modeling_mistral_yarn import \
+    MistralDynamicNTKScalingRotaryEmbedding as MistralDynamicNTKScalingRotaryEmbedding_torch
+
+from modeling_mistral_yarn_flax import MistralYaRNScaledRotaryEmbedding as MistralYaRNScaledRotaryEmbedding_flax
+from modeling_mistral_yarn import MistralYaRNScaledRotaryEmbedding as MistralYaRNScaledRotaryEmbedding_torch
 
 import torch
 import jax.numpy as jnp
@@ -221,6 +226,26 @@ class TestMistralDynamicNTScalingRotaryEmbedding(TestCase):
         flax_outputs = flax_layer.apply(params, flax_input, 10)
 
         torch_layer = MistralDynamicNTKScalingRotaryEmbedding_torch(dim=50, scaling_factor=2)
+        np_input = np.asarray(flax_input)
+        torch_input = torch.from_numpy(np_input)
+        torch_outputs = torch_layer(torch_input, 10)
+
+        np_array = np.asarray(flax_outputs)
+        flax_to_torch_ten = torch.from_numpy(np_array)
+
+        cond1 = torch.allclose(flax_to_torch_ten[0], torch_outputs[0], atol=1e-03)
+        cond2 = torch.allclose(flax_to_torch_ten[1], torch_outputs[1], atol=1e-03)
+        self.assertTrue(cond1 and cond2)
+
+
+class TestMistralYaRNScaledRotaryEmbedding(TestCase):
+    def test_setup(self):
+        flax_layer = MistralYaRNScaledRotaryEmbedding_flax(dim=50)
+        params = flax_layer.init(jax.random.key(0), jnp.ones((20, 13, 10, 40)), 10)
+        flax_input = jax.random.normal(jax.random.key(0), shape=(20, 13, 10, 40))
+        flax_outputs = flax_layer.apply(params, flax_input, 10)
+
+        torch_layer = MistralYaRNScaledRotaryEmbedding_torch(dim=50)
         np_input = np.asarray(flax_input)
         torch_input = torch.from_numpy(np_input)
         torch_outputs = torch_layer(torch_input, 10)
