@@ -18,3 +18,12 @@ close to 0 attention strength, while at the same time exhibiting severe oscillat
 On the other hand the attention implied by Yarn drops in a much smoother fashion and has much smaller oscillations.
 
 ![](assets/yarn_vs_rope.png)
+
+
+<h2> :envelope: Contact Information </h2>
+You can contact me at any of my social network profiles:
+
+- :briefcase: Linkedin: https://www.linkedin.com/in/konstantinos-pitas-lts2-epfl/
+- :octocat: Github: https://github.com/konstantinos-p
+
+Or via email at cwstas2007@hotmail.com
