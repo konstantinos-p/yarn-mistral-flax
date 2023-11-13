@@ -11,3 +11,10 @@ From the abstract of the original [arxiv submission](https://arxiv.org/abs/2309.
 "Rotary Position Embeddings (RoPE) have been shown to effectively encode positional information in transformer-based language models. However, these models fail to generalize past the sequence length they were trained on. We present YaRN (Yet another RoPE extensioN method), a compute-efficient method to extend the context window of such models, requiring 10x less tokens and 2.5x less training steps than previous methods. Using YaRN, we show that LLaMA models can effectively utilize and extrapolate to context lengths much longer than their original pre-training would allow, while also surpassing previous the state-of-the-art at context window extension. In addition, we demonstrate that YaRN exhibits the capability to extrapolate beyond the limited context of a fine-tuning dataset."
 
 # Visualizing the improvements of yarn
+Below I compare the attention strength when using RoPE with positional interpolation
+and Yarn. I assume that the original context length was 1000 tokens and the new extended 
+context length is 5000 tokens. We see that RoPE with positional interpolation drops quickly to
+close to 0 attention strength, while at the same time exhibiting severe oscillations for further values. 
+On the other hand the attention implied by Yarn drops in a much smoother fashion and has much smaller oscillations.
+
+![](assets/yarn_vs_rope.png)
