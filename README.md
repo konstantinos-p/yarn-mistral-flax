@@ -14,8 +14,8 @@ From the abstract of the original [arxiv submission](https://arxiv.org/abs/2309.
 Below I compare the attention strength when using RoPE with positional interpolation
 and Yarn. I assume that the original context length was 1000 tokens and the new extended 
 context length is 5000 tokens. We see that RoPE with positional interpolation drops quickly to
-close to 0 attention strength, while at the same time exhibiting severe oscillations for further values. 
-On the other hand the attention implied by Yarn drops in a much smoother fashion and has much smaller oscillations.
+close to 0 attention preactivation strength, while at the same time exhibiting severe oscillations for further values. 
+On the other hand the attention preactivation implied by Yarn drops in a much smoother fashion and has much smaller oscillations.
 
 ![](assets/yarn_vs_rope.png)
 
